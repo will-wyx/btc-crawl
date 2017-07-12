@@ -4,6 +4,7 @@
 const hr = require('./http-request');
 const mapLimit = require('async/mapLimit');
 const fs = require('fs');
+const ProgressBar = require('progress');
 
 const host = 'http://www.huosubtc.com';
 const headreg = /^信息编号：(\d*).*发布日期：(\d{4}-\d{2}-\d{2}).*$/;
@@ -124,7 +125,20 @@ exports.getPageCount = function getPageCount(category, callback) {
  * @param callback
  */
 function getLinks(category, uris, callback) {
-    mapLimit(uris, 8, hr.getDom, (err, res) => {
+    let len = uris.length;
+    let bar = new ProgressBar(`get ${category} links |:bar| :percent`, {
+        complete: '█',
+        incomplete: '░',
+        width: 50,
+        total: len + 1
+    });
+    bar.tick();
+    mapLimit(uris, 8, (uris, callback) => {
+        hr.getDom(uris, (e, r) => {
+            bar.tick();
+            callback(e, r);
+        });
+    }, (err, res) => {
         let result = {
             category, links: []
         };
@@ -146,12 +160,14 @@ function getLinks(category, uris, callback) {
  */
 exports.getCategoryLinks = function getCategoryLinks(options, callback) {
     let {category, count} = options;
-    let uris = [];
-    for (let i = 1; i <= count; ++i) {
-        let uri = `${host}/goods/${category}.html?page=${i}`;
-        uris.push(uri);
+    if (count) {
+        let uris = [];
+        for (let i = 1; i <= count; ++i) {
+            let uri = `${host}/goods/${category}.html?page=${i}`;
+            uris.push(uri);
+        }
+        getLinks(category, uris, callback);
     }
-    getLinks(category, uris, callback);
 };
 
 /**
@@ -169,7 +185,20 @@ exports.getCategoryDetails = function getCategoryDetails(options, callback) {
         return flag;
     });
     links = links.map(e => host + e);
-    mapLimit(links, 8, hr.getDom, (err, res) => {
+    let barlen = links.length;
+    let bar = new ProgressBar(`get ${category} detail |:bar| :percent`, {
+        complete: '█',
+        incomplete: '░',
+        width: 50,
+        total: barlen + 1
+    });
+    bar.tick();
+    mapLimit(links, 8, (links, callback) => {
+        hr.getDom(links, (e, r) => {
+            bar.tick();
+            callback(e, r);
+        });
+    }, (err, res) => {
         let result = {
             category, details: []
         };
@@ -187,7 +216,7 @@ exports.getCategoryDetails = function getCategoryDetails(options, callback) {
 Array.prototype.unique3 = function () {
     let res = [];
     let json = {};
-    for(let item of this) {
+    for (let item of this) {
         if (!json[item]) {
             res.push(item);
             json[item] = 1;

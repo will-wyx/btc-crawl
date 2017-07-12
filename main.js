@@ -4,10 +4,16 @@
 const hb = require('./huosubtc-step');
 const fs = require('fs');
 const mapLimit = require('async/mapLimit');
-// const host = 'http://www.huosubtc.com';
 const mysql = require('mysql');
 const config = require('./data-config').config;
 
+const ProgressBar = require('progress');
+
+const category_config = new Map();
+category_config.set('bitcoin', 71);
+category_config.set('litecoin', 72);
+category_config.set('ethereum', 75);
+category_config.set('power', 76);
 /**
  * step 2 get page count
  * 得到所有商品类型的页数
@@ -19,7 +25,20 @@ const config = require('./data-config').config;
  */
 function getPageCount() {
     return new Promise((resolve, reject) => {
-        mapLimit(categories, 4, hb.getPageCount, (err, res) => {
+        let len = categories.length;
+        let bar = new ProgressBar('get page count |:bar| :percent', {
+            complete: '█',
+            incomplete: '░',
+            width: 50,
+            total: len + 1
+        });
+        bar.tick();
+        mapLimit(categories, 4, (categories, callback) => {
+            hb.getPageCount(categories, (e, r) => {
+                bar.tick();
+                callback(e, r);
+            });
+        }, (err, res) => {
             if (err)
                 reject(err);
             else
@@ -81,7 +100,6 @@ const categories = [
 let promiseGetPageCount = getPageCount();
 // step 3 get links
 function getCategoryLinks(categoriesCount) {
-    console.log('*** counts ***');
     let promiseGetLinks = getLinks(categoriesCount);
     promiseGetLinks.then(getCategoryDetails, err => {
         console.log('get links error', err);
@@ -98,7 +116,6 @@ function addPublish(connection, values, callback) {
 }
 // step 4 get details
 function getCategoryDetails(categoriesLinks) {
-    console.log('*** start get details ***');
     let promiseGetDetails = getDetails(categoriesLinks);
     promiseGetDetails.then(res => {
         connection.connect();
@@ -109,17 +126,27 @@ function getCategoryDetails(categoriesLinks) {
             let {category, details} = item;
             for (let detail of details) {
                 if (detail && detail.id) {
+                    detail.category = category_config.get(category);
                     params.push(detail);
                 }
             }
         }
+        let barlen = params.length;
+        let bar = new ProgressBar('insert |:bar| :percent', {
+            complete: '█',
+            incomplete: '░',
+            width: 50,
+            total: barlen + 1
+        });
+        bar.tick();
         mapLimit(params, 20, (detail, callback) => {
             let values = {
-                type: detail.type, category: 71, neworold: detail.fineness,
+                type: detail.type, category: detail.category, neworold: detail.fineness,
                 price: detail.price, name: detail.title, content: detail.content,
                 compellation: detail.contact, qq: detail.qq, phone: detail.tel,
                 userid: 1, status: 3, create_time: detail.time, cover: detail.pic
             };
+            bar.tick();
             addPublish(connection, values, (err, res, field) => {
                 if(err)
                     console.log(err);
@@ -138,7 +165,7 @@ function getCategoryDetails(categoriesLinks) {
             connection.end();
             let record_json = hb.unionRecords(records);
             fs.writeFile('huosubtc-record.json', JSON.stringify(record_json), err => {
-                console.log(`write log ${err}`)
+                console.log(`write log completed`)
             });
         });
     }, err => {
