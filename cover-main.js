@@ -17,12 +17,12 @@ const regSuffix = /^.*\.([^.]+)$/;
 
 let cover_record_test = fs.readFileSync('huosuimg-record.json', 'utf8');
 let cover_record_json = JSON.parse(cover_record_test);
-cover_record_json = arr2map(cover_record_json);
+let cover_record_map = arr2map(cover_record_json);
+// cover_record_map = new Map();
 
 const connection = mysql.createConnection(config);
 connection.connect();
-
-(new Promise((resolve, reject) => {
+let promiseQuery = new Promise((resolve, reject) => {
     connection.query(`select id, cover 
             from jc_view_release 
             where cover like 'http://%' 
@@ -36,7 +36,45 @@ connection.connect();
             resolve(res);
         }
     });
-})).then(res => {
+});
+function getCover(row, callback) {
+    let {id, cover: uri} = row;
+    let result = {err: 0};
+    if (regUrl.test(uri)) {
+        let url = new URL(uri);
+        let {pathname} = url;
+        if (regSuffix.test(pathname)) {
+            let suffix = regSuffix.exec(pathname)[1];
+            let localFile = cover_record_map.get(uri);
+            if (!localFile) {
+                // 不存在本地文件，下载
+                localFile = `covers/${shortid.generate()}.${suffix}`;
+                let res = request({uri, timeout: 1500});
+                res.pipe(fs.createWriteStream(localFile));
+                res.on('end', () => {
+                    result.data = {id, localFile};
+                    callback(null, result);
+                });
+                res.on('error', (err) => {
+                    result.err = err;
+                    // bar.tick();
+                    // callback(null, result);
+                });
+                cover_record_map.set(uri, localFile);
+            } else {
+                result.data = {id, localFile};
+                callback(null, result);
+            }
+        } else {
+            result.err = '图片类型不合法';
+            callback(null, result);
+        }
+    } else {
+        result.err = '图片链接不合法';
+        callback(null, result);
+    }
+}
+promiseQuery.then(res => {
     connection.end();
     let barlen = res.length;
     let bar = new ProgressBar('download files |:bar| :percent', {
@@ -47,48 +85,11 @@ connection.connect();
     });
     bar.tick();
     mapLimit(res, 20, (row, callback) => {
-        let {id, cover: uri} = row;
-        let result = {err: 0};
-        if (regUrl.test(uri)) {
-            let url = new URL(uri);
-            let {pathname} = url;
-            if (regSuffix.test(pathname)) {
-                let suffix = regSuffix.exec(pathname)[1];
-                let localFile = cover_record_json.get(uri);
-                if (!localFile) {
-                    // 不存在本地文件，下载
-                    localFile = `covers/${shortid.generate()}.${suffix}`;
-                    let res = request({uri, timeout: 1500});
-                    res.pipe(fs.createWriteStream(localFile));
-                    res.on('end', () => {
-                        result.data = {id, localFile};
-                        bar.tick();
-                        callback(null, result);
-                    });
-                    res.on('error', (err) => {
-                        result.err = err;
-                        bar.tick();
-                        callback(null, result);
-                    });
-                    cover_record_json.set(uri, filename);
-                } else {
-                    result.data = {id, localFile};
-                    bar.tick();
-                    callback(null, result);
-                }
-            } else {
-                result.err = '图片类型不合法';
-                bar.tick();
-                callback(null, result);
-            }
-        } else {
-            result.err = '图片链接不合法';
+        getCover(row, (e, r) => {
             bar.tick();
-            callback(null, result);
-        }
+            callback(e, r);
+        });
     }, (err, res) => {
-        console.log('completed');
-        return false;
         if (err)
             console.log(err);
         else {
