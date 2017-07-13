@@ -11,11 +11,13 @@ const request = require('request');
 const ProgressBar = require('progress');
 
 const config = require('./data-config').config;
+const {map2arr, arr2map, obj2map} = require('./util');
 const regUrl = /^https?:\/\/.*$/;
 const regSuffix = /^.*\.([^.]+)$/;
 
 let cover_record_test = fs.readFileSync('huosuimg-record.json', 'utf8');
 let cover_record_json = JSON.parse(cover_record_test);
+cover_record_json = arr2map(cover_record_json);
 
 const connection = mysql.createConnection(config);
 connection.connect();
@@ -52,7 +54,7 @@ connection.connect();
             let {pathname} = url;
             if (regSuffix.test(pathname)) {
                 let suffix = regSuffix.exec(pathname)[1];
-                let localFile = getLocalFile(uri);
+                let localFile = cover_record_json.get(uri);
                 if (!localFile) {
                     // 不存在本地文件，下载
                     localFile = `covers/${shortid.generate()}.${suffix}`;
@@ -68,7 +70,7 @@ connection.connect();
                         bar.tick();
                         callback(null, result);
                     });
-                    addLocalFile(uri, localFile);
+                    cover_record_json.set(uri, filename);
                 } else {
                     result.data = {id, localFile};
                     bar.tick();
@@ -85,25 +87,15 @@ connection.connect();
             callback(null, result);
         }
     }, (err, res) => {
+        console.log('completed');
+        return false;
         if (err)
             console.log(err);
         else {
-            for(let item of res) {
-                console.log(item);
-            }
-            fs.writeFile('huosuimg-record.json', JSON.stringify(cover_record_json), err => {
+            let cover_record_arr = map2arr(cover_record_json);
+            fs.writeFile('huosuimg-record.json', JSON.stringify(cover_record_arr), err => {
                 console.log(`write log completed`)
             });
         }
     });
 });
-
-function getLocalFile(uri) {
-    let localFile = cover_record_json[uri];
-    return localFile;
-}
-
-function addLocalFile(uri, filename) {
-    cover_record_json[uri] = filename;
-}
-
