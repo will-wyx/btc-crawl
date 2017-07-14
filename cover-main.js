@@ -3,6 +3,7 @@
  */
 const fs = require('fs');
 const mapLimit = require('async/mapLimit');
+const setImmediate = require('async/setImmediate');
 const mysql = require('mysql');
 const {URL} = require('url');
 const shortid = require('shortid');
@@ -49,16 +50,22 @@ function getCover(row, callback) {
             if (!localFile) {
                 // 不存在本地文件，下载
                 localFile = `covers/${shortid.generate()}.${suffix}`;
+                let called = false;
                 let res = request({uri, timeout: 1500});
                 res.pipe(fs.createWriteStream(localFile));
                 res.on('end', () => {
                     result.data = {id, localFile};
-                    callback(null, result);
+                    if (!called) {
+                        called = true;
+                        callback(null, result);
+                    }
                 });
                 res.on('error', (err) => {
                     result.err = err;
-                    // bar.tick();
-                    // callback(null, result);
+                    if (!called) {
+                        called = true;
+                        callback(null, result);
+                    }
                 });
                 cover_record_map.set(uri, localFile);
             } else {
@@ -84,19 +91,23 @@ promiseQuery.then(res => {
         total: barlen + 1
     });
     bar.tick();
+    mapLimitGetCover(res, bar);
+});
+
+function mapLimitGetCover(res, bar) {
     mapLimit(res, 20, (row, callback) => {
         getCover(row, (e, r) => {
             bar.tick();
-            callback(e, r);
+            setImmediate(callback, e, r);
         });
     }, (err, res) => {
         if (err)
             console.log(err);
         else {
-            let cover_record_arr = map2arr(cover_record_json);
+            let cover_record_arr = map2arr(cover_record_map);
             fs.writeFile('huosuimg-record.json', JSON.stringify(cover_record_arr), err => {
                 console.log(`write log completed`)
             });
         }
     });
-});
+}
