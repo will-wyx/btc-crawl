@@ -10,7 +10,7 @@ const host = 'http://www.huosubtc.com';
 const headreg = /^信息编号：(\d*).*发布日期：(\d{4}-\d{2}-\d{2}).*$/;
 const footreg = /^联系人：([^  QQ]*)(  QQ：(\d*))?.*$/;
 
-let record_text = fs.readFileSync('huosubtc-record.json', 'utf8');
+let record_text = fs.readFileSync('record/huosulink-record.json', 'utf8');
 let record_json = JSON.parse(record_text);
 let record_links = record_json.map(e => `${host}/goods/${e}.html`);
 /**

@@ -24,6 +24,7 @@
     "progress": "^2.0.0",
     "request": "^2.81.0",
     "request-promise": "^4.2.1",
-    "shortid": "^2.2.8"
+    "shortid": "^2.2.8",
+    "tough-cookie": "^2.3.2"
   }
 }

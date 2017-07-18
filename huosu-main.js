@@ -1,11 +1,11 @@
 // /**
 //  * Created by WILL on 2017/7/1.
 //  */
-const hb = require('./huosubtc-step');
+const hb = require('./huosu-step');
 const fs = require('fs');
 const mapLimit = require('async/mapLimit');
 const mysql = require('mysql');
-const config = require('./data-config').config;
+const config = require('./config/data-config').config;
 
 const ProgressBar = require('progress');
 
@@ -164,7 +164,7 @@ function getCategoryDetails(categoriesLinks) {
             }
             connection.end();
             let record_json = hb.unionRecords(records);
-            fs.writeFile('huosubtc-record.json', JSON.stringify(record_json), err => {
+            fs.writeFile('record/huosulink-record.json', JSON.stringify(record_json), err => {
                 console.log(`write log completed`)
             });
         });

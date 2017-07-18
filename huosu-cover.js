@@ -11,12 +11,12 @@ const request = require('request');
 
 const ProgressBar = require('progress');
 
-const config = require('./data-config').config;
+const config = require('./config/data-config').config;
 const {map2arr, arr2map, obj2map} = require('./util');
 const regUrl = /^https?:\/\/.*$/;
 const regSuffix = /^.*\.([^.]+)$/;
 
-let cover_record_test = fs.readFileSync('huosuimg-record.json', 'utf8');
+let cover_record_test = fs.readFileSync('record/huosuimg-record.json', 'utf8');
 let cover_record_json = JSON.parse(cover_record_test);
 let cover_record_map = arr2map(cover_record_json);
 // cover_record_map = new Map();
@@ -105,7 +105,7 @@ function mapLimitGetCover(res, bar) {
             console.log(err);
         else {
             let cover_record_arr = map2arr(cover_record_map);
-            fs.writeFile('huosuimg-record.json', JSON.stringify(cover_record_arr), err => {
+            fs.writeFile('record/huosuimg-record.json', JSON.stringify(cover_record_arr), err => {
                 console.log(`write log completed`)
             });
         }
