@@ -1,3 +1,5 @@
 # Created by .ignore support plugin (hsz.mobi)
 /config/
 /test.js
+/covers/
+/node_modules/

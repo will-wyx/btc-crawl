@@ -1,14 +1,11 @@
-const request = require('request');
-const fs = require('fs');
-let uri = 'http://192.168.1.253/fds';
-let res = request({uri, timeout: 1500});
-res.on('end', (e, r, t) => {
-    console.log('end');
-});
-// res.on('response', response => {
-//     console.log(response.statusCode, 'response');
-// });
-res.pipe(fs.createWriteStream('test.bak'));
-res.on('error', (err) => {
-    console.log(err);
-});
+const {URL} = require('url');
+let href = 'http://www.cybtc.com/plugin.php';
+let url = new URL(href);
+let {searchParams} = url;
+console.log(searchParams.get('page'));
+
+// let regPageLink = /^plugin\.php\?id=aljes&page=(71)$/;
+// let page = regPageLink.exec(url);
+// console.log(page);
+// let flag = regPageLink.test(url);
+// console.log(flag);
